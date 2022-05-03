@@ -37,19 +37,56 @@ beforeAll(async () => {
 
 describe('GET /api/games', () => {
 	test('games are returned as json', async () => {
-		await api
-			.get('/api/games')
+		await api.get('/api/games')
 			.expect(200)
-			.expect(res => {
-				// TODO: assert that API returned expected number of games
+			.expect(response => {
+				expect(response.body).toHaveLength(games.length);
 			})
 	})
 })
 
-
 describe('POST /api/games', () => {
-	test('create a new game', async () => {
-		// TODO: assert that API return new game object
+	const newGame = {
+        winner: "computer",
+        player: 0,
+        computer: 1
+    };
+
+	const newInvalidGame = {
+        winner: "player",
+        player: 0,
+        computer: 1
+    };
+
+	test('create a new game, expect 200 response and valid json', async () => {
+		await api.post('/api/games')
+			.send(newGame)
+			.expect(200)
+			.expect(response => {
+				const { winner, moves } = response.body
+
+				expect({ winner, moves }).toEqual({
+                    winner: newGame.winner,
+                    moves: {
+                        player: newGame.player,
+                        computer: newGame.computer
+                    }
+                });
+			})
+	})
+
+	test('create a new invalid game, expect 400 and invalid json', async () => {
+		await api.post('/api/games')
+			.send(newInvalidGame)
+			.expect(400)
+			.expect(response => {
+				const { winner, moves } = response.body
+
+				expect({ winner, moves }).toEqual({
+                    winner: undefined,
+                    moves: undefined
+                });
+			})
 	})
 })
 
