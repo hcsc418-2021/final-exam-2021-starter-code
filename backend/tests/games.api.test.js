@@ -1,3 +1,4 @@
+const { json } = require('express')
 const mongoose = require('mongoose')
 const supertest = require('supertest')
 const app = require('../app')
@@ -20,6 +21,7 @@ const games = [
 			"computer": 1
 		}
 	},
+	
 ]
 
 const testPlayedAtValue = new Date(+1619743623)
@@ -37,60 +39,46 @@ beforeAll(async () => {
 
 describe('GET /api/games', () => {
 	test('games are returned as json', async () => {
-		await api.get('/api/games')
+		await api
+			.get('/api/games')
 			.expect(200)
-			.expect(response => {
-				expect(response.body).toHaveLength(games.length);
+			.expect((res) => {
+				// TODO: assert that API returned expected number of games
+				console.log("api get test",res.body)
+				expect(res.body.length).toBe(2)
 			})
+			
 	})
 })
 
+
 describe('POST /api/games', () => {
-	const newGame = {
-        winner: "computer",
-        player: 0,
-        computer: 1
-    };
+	test('create a new game', async () => {
+		
+		// TODO: assert that API return new game object
+		const expectedResponse = {
+			"winner": "player wins",
+			"moves": {
+				"player": 2,
+				"computer": 1
+			},
+			"playedAt": "2021-04-30T23:21:42.557Z"
+		} 
 
-	const newInvalidGame = {
-        winner: "player",
-        player: 0,
-        computer: 1
-    };
+		await api
+		.post('/api/games')
+		.send(expectedResponse)
+		.expect(201)
+		.expect((res) => {
+			console.log("api post test here",res.body)
+			const {winner, moves, playedAt} = res.body;
+			expect({winner, moves, playedAt}).toEqual(expectedResponse)
+		})
 
-	test('create a new game, expect 200 response and valid json', async () => {
-		await api.post('/api/games')
-			.send(newGame)
-			.expect(200)
-			.expect(response => {
-				const { winner, moves } = response.body
-
-				expect({ winner, moves }).toEqual({
-                    winner: newGame.winner,
-                    moves: {
-                        player: newGame.player,
-                        computer: newGame.computer
-                    }
-                });
-			})
-	})
-
-	test('create a new invalid game, expect 400 and invalid json', async () => {
-		await api.post('/api/games')
-			.send(newInvalidGame)
-			.expect(400)
-			.expect(response => {
-				const { winner, moves } = response.body
-
-				expect({ winner, moves }).toEqual({
-                    winner: undefined,
-                    moves: undefined
-                });
-			})
+		
 	})
 })
 
 afterAll(() => {
 	mongoose.connection.close()
 })
-

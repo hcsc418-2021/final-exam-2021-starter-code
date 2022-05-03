@@ -1,95 +1,102 @@
+const mongoose = require('mongoose')
 const gamesRouter = require('express').Router()
+const gameHelper = require('../utils/game_helper')
+
 const Game = require('../models/games')
+
 gamesRouter.get('/', async (request, response) => {
-
-  // TODO: complete implementation for GET all
-  Game.find({}).then(games => {
-    response.json(games)
-  })
-
-
+  await Game.find()
+    .then(games => {
+      return response.status(200).json(games);
+    })
+    .catch(error => {
+      return response.status(404).json({ message: error.message });
+    });
 })
-
-const vaildWinner = (input) => {
-
-  if(input == "player wins" || input == "computer wins" || input == "draw") {
-
-    return true
-  }
-
-  return false
-}
-const isValidMove = n => {
-  // TODO: complete implementation
-  // HINT: Number has methods to check if a value is an integer
-  if(Number.isInteger(n) && n > -1 && n < 3) {
-
-    return true
-  }
-
-  return false
-}
-
-const validGame = (game) => {
-
-  if (vaildWinner(game.winner) && isValidMove(game.moves.player) ) {
-
-    return true
-  }
-
-  return false
-}
 
 gamesRouter.post('/', async (request, response) => {
+  let game;
+  let winner;
 
-	// TODO: implement input validation
-  const game = new Game({
-    "winner": request.body.winner,
-    "moves": request.body.moves,
-    "playedAt": request.body.playedAt
+  try {
+    game = request.body;
 
-  })
+    if (!gameHelper.isWinnerInputValid(game.winner) ||
+        !gameHelper.isValidMove(game.computer) ||
+        !gameHelper.isValidMove(game.player)) {
+        throw new Error("Invalid Game")
+    }
 
+    winner = gameHelper.play({ player: game.player, computer: game.computer });
 
-  if(validGame(game)) {
-	// TODO: BONUS create new entry with async/await syntax
-    const game = new Game({
-      "winner": request.body.winner,
-      "moves": request.body.moves,
-      "playedAt": request.body.playedAt
+    if (winner !== game.winner) {
+      throw new Error("Invalid Winner");
+    }
 
-    })
-    await game
-      .save()
-      .then(result => {
-        response.status(201).json(result)
-    })
-  } else {
+    const newGame = new Game({
+      winner: game.winner,
+      moves: {
+        player: game.player,
+        computer: game.computer
+      }
+    });
 
-    console.log("failed")
+    await newGame.save().then(result => {
+      return response.status(200).json(result);
+    });
+  } catch (error) {
+    return response.status(400).json({ message: error.message });
   }
 })
 
-// TODO: implement GET /:id for a specific game
-gamesRouter.get('/:id', (request, response, next) => {
-  Game.findById(request.params.id)
-    .then(game => {
+gamesRouter.get('/:id', async (request, response) => {
+  let id;
+
+  try {
+    if (!(id = Number(request.params.id)) ||
+      !mongoose.Types.ObjectId.isValid(id)) {
+      throw new Error("Invalid Game ID");
+    }
+  } catch (error) {
+    return response.status(400).json({ message: error.message });
+  }
+
+  try {
+    await Game.findById(id).then(game => {
       if (game) {
-        response.json(game)
-      } else {
-        response.status(404).end()
+        return game;
       }
-    })
-    .catch(error => next(error))
+
+      throw new Error(`No Game Found With Given ID: ${id}`);
+    });
+  } catch (error) {
+    return response.status(500).json({ message: error.message });
+  }
 })
 
-// TODO: implement DELETE /:id to remove a game
-gamesRouter.delete('/:id', (request, response, next) => {
-  Game.findByIdAndRemove(request.params.id)
-    .then(() => {
-      response.status(204).end()
+gamesRouter.delete('/:id', async (request, response) => {
+  let id;
+
+  try {
+    if (!(id = Number(request.params.id)) ||
+      !mongoose.Types.ObjectId.isValid(id)) {
+      throw new Error("Invalid Game ID");
+    }
+  } catch (error) {
+    return response.status(400).json({ message: error.message });
+  }
+
+  try {
+    await Game.findOneAndDelete({ _id: id }, function (err, docs) {
+      if (err) {
+        throw new Error(err);
+      }
+
+      return response.status(200).json({ message: `Game ID=${id} Deleted` });
     })
-    .catch(error => next(error))
+  } catch (error) {
+    return response.status(500).json({ message: error.message });
+  }
 })
 
-module.exports = gamesRouter
+
